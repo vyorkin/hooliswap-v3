@@ -42,13 +42,19 @@ contract UniswapV3Pool {
     int24 tick;
   }
 
+  struct CallbackData {
+    address token0;
+    address token1;
+    address payer;
+  }
+
   Slot0 public slot0;
 
   // L - amount of liquidity.
   uint128 public liquidity;
 
   mapping(int24 => Tick.Info) public ticks;
-  mapping(bytes23 => Position.Info) public positions;
+  mapping(bytes32 => Position.Info) public positions;
 
   constructor(
     address token0_,
@@ -76,6 +82,9 @@ contract UniswapV3Pool {
     // Add liquidity to upper & lower ticks and initializes them if needed.
     ticks.update(lowerTick, amount);
     ticks.update(upperTick, amount);
+
+    Position.Info storage position = positions.get(owner, lowerTick, upperTick);
+    position.update(amount);
 
     // TODO: Calculate the amounts that user must deposit.
     amount0 = 0.998976618347425280 ether;
