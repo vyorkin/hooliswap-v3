@@ -152,7 +152,7 @@ contract UniswapV3PoolTest is Test {
       );
   }
 
-  function testFoo() public {
-    assertTrue(true);
+  function testSwapBuyEth() public {
+
   }
 }

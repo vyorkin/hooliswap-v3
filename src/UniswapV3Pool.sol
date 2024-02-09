@@ -28,6 +28,16 @@ contract UniswapV3Pool {
     uint256 amount1
   );
 
+  event Swap(
+    address indexed sender,
+    address indexed recipient,
+    int256 amount0,
+    int256 amount1,
+    uint160 sqrtPriceX96,
+    uint128 liquidity,
+    int24 tick
+  );
+
   int24 internal constant MIN_TICK = -887272;
   int24 internal constant MAX_TICK = -MIN_TICK;
 
@@ -50,7 +60,11 @@ contract UniswapV3Pool {
 
   Slot0 public slot0;
 
-  // L - amount of liquidity.
+  // L - amount of liquidity currently available.
+  //
+  // Sum of liquidity of all the price ranges that include the current price.
+  // It gets updated when the price is leaving and
+  // entering price ranges (crossing a tick) during swapping (swapping changes price).
   uint128 public liquidity;
 
   mapping(int24 => Tick.Info) public ticks;
@@ -111,6 +125,42 @@ contract UniswapV3Pool {
     if (amount1 > 0 && balance1Before + amount1 > balance1()) revert InsufficientInputAmount();
 
     emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
+  }
+
+  function swap(address recipient, bytes calldata data)
+    public
+    returns (int256 amount0, int256 amount1)
+  {
+    // TODO: Calculate the next tick & price.
+    int24 nextTick = 85184;
+    uint160 nextPrice = 5604469350942327889444743441197;
+
+    // TODO: Use input amount parameter.
+    // TODO: Calculate how many tokens we'll get int exchange.
+    amount0 = -0.008396714242162444 ether;
+    amount1 = 42 ether;
+
+    // Update the current tick and sqrtP since trading affects the current price.
+    (slot0.tick, slot0.sqrtPriceX96) = (nextTick, nextPrice);
+
+    // Send tokens to the recipient and let the caller transfer input amount into the contract.
+    IERC20(token0).transfer(recipient, uint256(-amount0));
+
+    uint256 balance1Before = balance1();
+    // We're using a callback to pass the control to the caller and let it transfer the tokens.
+    IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+    // After that, we check that the pool's balance is correct and includes the input amount.
+    if (balance1Before + uint256(amount1) > balance1()) revert InsufficientInputAmount();
+
+    emit Swap(
+      msg.sender,
+      recipient,
+      amount0,
+      amount1,
+      slot0.sqrtPriceX96,
+      liquidity,
+      slot0.tick
+    );
   }
 
   function balance0() internal view returns (uint256 balance) {
